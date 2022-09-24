@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class Application {
 
     public static void main(String[] args) {
+        System.setProperty("spring.config.additional-location", "classpath:api.properties");
         SpringApplication.run(Application.class, args);
     }
 }

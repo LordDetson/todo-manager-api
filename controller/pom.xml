@@ -15,6 +15,7 @@
 
     <properties>
         <sonar.coverage.exclusions>**/*</sonar.coverage.exclusions>
+        <modelmapper.varsuon>3.1.0</modelmapper.varsuon>
     </properties>
 
     <dependencies>
@@ -30,6 +31,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.modelmapper</groupId>
+            <artifactId>modelmapper</artifactId>
+            <version>${modelmapper.varsuon}</version>
         </dependency>
     </dependencies>
 </project>

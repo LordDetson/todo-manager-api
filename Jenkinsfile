@@ -7,7 +7,9 @@ pipeline {
   stages {
     stage ('Build todo-manager-api') {
       steps {
-        sh 'mvn clean -Dmaven.test.failure.ignore=true install'
+        withSonarQubeEnv('SonarQube') {
+          sh 'mvn clean -Dmaven.test.failure.ignore=true install $SONAR_MAVEN_GOAL'
+        }
       }
       post {
         success {

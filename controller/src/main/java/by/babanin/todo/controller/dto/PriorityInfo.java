@@ -1,19 +1,21 @@
 package by.babanin.todo.controller.dto;
 
-import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.PositiveOrZero;
+import javax.validation.constraints.Size;
 
 import lombok.Data;
 
 @Data
 public class PriorityInfo {
 
-    @Min(value = 0, message = "Id can't be negative")
+    @PositiveOrZero
     Long id;
 
-    @NotBlank(message = "Name can't be empty")
+    @NotBlank
+    @Size(min = 1, max = 16)
     String name;
 
-    @Min(value = 0, message = "Position can't be negative")
+    @PositiveOrZero
     Long position;
 }

@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -120,7 +121,9 @@ class PriorityControllerTest {
         PriorityInfo priorityInfo = new PriorityInfo();
         priorityInfo.setName(name);
         ErrorResult errorResult = new ErrorResult();
-        errorResult.getFieldErrors().add(new FieldValidationError("name", "Name can't be empty"));
+        List<FieldValidationError> fieldErrors = errorResult.getFieldErrors();
+        fieldErrors.add(new FieldValidationError(Fields.name, "must not be blank"));
+        fieldErrors.add(new FieldValidationError(Fields.name, "size must be between 1 and 16"));
 
         mockMvc.perform(MockMvcRequestBuilders.post("/priorities")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -141,7 +144,7 @@ class PriorityControllerTest {
         priorityInfo.setId(id);
         priorityInfo.setName(name);
         ErrorResult errorResult = new ErrorResult();
-        errorResult.getFieldErrors().add(new FieldValidationError("id", "Id can't be negative"));
+        errorResult.getFieldErrors().add(new FieldValidationError(Fields.id, "must be greater than or equal to 0"));
 
         mockMvc.perform(MockMvcRequestBuilders.post("/priorities")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -162,7 +165,7 @@ class PriorityControllerTest {
         priorityInfo.setName(name);
         priorityInfo.setPosition(position);
         ErrorResult errorResult = new ErrorResult();
-        errorResult.getFieldErrors().add(new FieldValidationError("position", "Position can't be negative"));
+        errorResult.getFieldErrors().add(new FieldValidationError(Fields.position, "must be greater than or equal to 0"));
 
         mockMvc.perform(MockMvcRequestBuilders.post("/priorities")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -181,6 +184,25 @@ class PriorityControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andReturn();
+    }
+
+    @Test
+    void createWithLongName() throws Exception {
+        String name = RandomStringUtils.random(17);
+        PriorityInfo priorityInfo = new PriorityInfo();
+        priorityInfo.setName(name);
+        ErrorResult errorResult = new ErrorResult();
+        errorResult.getFieldErrors().add(new FieldValidationError(Fields.name, "size must be between 1 and 16"));
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/priorities")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(priorityInfo)))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
+                        .containsObjectAsJson(errorResult, ErrorResult.class));
+
+        Mockito.verify(service, Mockito.never())
+                .create(name);
     }
 
     @Test
@@ -220,7 +242,9 @@ class PriorityControllerTest {
                 .build();
         PriorityInfo priorityInfo = modelMapper.map(priority, PriorityInfo.class);
         ErrorResult errorResult = new ErrorResult();
-        errorResult.getFieldErrors().add(new FieldValidationError("name", "Name can't be empty"));
+        List<FieldValidationError> fieldErrors = errorResult.getFieldErrors();
+        fieldErrors.add(new FieldValidationError(Fields.name, "must not be blank"));
+        fieldErrors.add(new FieldValidationError(Fields.name, "size must be between 1 and 16"));
 
         mockMvc.perform(MockMvcRequestBuilders.put("/priorities/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -244,7 +268,7 @@ class PriorityControllerTest {
                 .build();
         PriorityInfo priorityInfo = modelMapper.map(priority, PriorityInfo.class);
         ErrorResult errorResult = new ErrorResult();
-        errorResult.getFieldErrors().add(new FieldValidationError("id", "Id can't be negative"));
+        errorResult.getFieldErrors().add(new FieldValidationError(Fields.id, "must be greater than or equal to 0"));
 
         mockMvc.perform(MockMvcRequestBuilders.put("/priorities/{id}", id)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -282,6 +306,30 @@ class PriorityControllerTest {
         mockMvc.perform(MockMvcRequestBuilders.put("/priorities/{id}", 0)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.status().isBadRequest());
+    }
+
+    @Test
+    void renameWithLongName() throws Exception {
+        long id = 1L;
+        String name = RandomStringUtils.random(17);
+        Priority priority = Priority.builder()
+                .id(id)
+                .name(name)
+                .position(0)
+                .build();
+        PriorityInfo priorityInfo = modelMapper.map(priority, PriorityInfo.class);
+        ErrorResult errorResult = new ErrorResult();
+        errorResult.getFieldErrors().add(new FieldValidationError(Fields.name, "size must be between 1 and 16"));
+
+        mockMvc.perform(MockMvcRequestBuilders.put("/priorities/{id}", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(priorityInfo)))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
+                        .containsObjectAsJson(errorResult, ErrorResult.class));
+
+        Mockito.verify(service, Mockito.never())
+                .rename(id, name);
     }
 
     @Test

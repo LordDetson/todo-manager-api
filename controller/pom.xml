@@ -14,7 +14,7 @@
     <packaging>war</packaging>
 
     <properties>
-        <sonar.coverage.exclusions>**/exception/**/*, **/config/**/*, **/dto/**/*, **/Application.java</sonar.coverage.exclusions>
+        <sonar.coverage.exclusions>**/exception/**/*, **/config/**/*, **/dto/**/*, **/Application.java, **/CheckUtils.java</sonar.coverage.exclusions>
         <modelmapper.varsuon>3.1.0</modelmapper.varsuon>
     </properties>
 
@@ -67,6 +67,7 @@
                         <exclude>**/config/**/*</exclude>
                         <exclude>**/dto/**/*</exclude>
                         <exclude>**/Application.java</exclude>
+                        <exclude>**/CheckUtils.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>

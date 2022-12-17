@@ -78,11 +78,7 @@ public class PriorityController {
 
     @DeleteMapping
     void delete(@RequestParam("ids") @NotEmpty Set<Long> ids) {
-        for(Long id : ids){
-            if(id < 0) {
-                throw new ValidationException("ID set must not contain negative IDs.");
-            }
-        }
+        assertNegativeIds(ids);
         priorityService.deleteAllById(ids);
     }
 
@@ -105,7 +101,8 @@ public class PriorityController {
     }
 
     @GetMapping("/search")
-    List<PriorityInfo> priorities(@RequestParam("ids") @NotEmpty Set<Long> ids) {
+    List<PriorityInfo> getAllById(@RequestParam("ids") @NotEmpty Set<Long> ids) {
+        assertNegativeIds(ids);
         return priorityService.getAllById(ids).stream()
                 .map(priority -> modelMapper.map(priority, PriorityInfo.class))
                 .toList();
@@ -115,5 +112,13 @@ public class PriorityController {
     PriorityInfo getById(@PathVariable("id") @Min(0) Long id) {
         Priority priority = priorityService.getById(id);
         return modelMapper.map(priority, PriorityInfo.class);
+    }
+
+    private static void assertNegativeIds(Set<Long> ids) {
+        for(Long id : ids){
+            if(id < 0) {
+                throw new ValidationException("ID set must not contain negative IDs.");
+            }
+        }
     }
 }

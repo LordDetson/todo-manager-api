@@ -13,6 +13,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -29,6 +33,7 @@ import by.babanin.todo.controller.exception.handler.ErrorResult;
 import by.babanin.todo.controller.exception.handler.FieldValidationError;
 import by.babanin.todo.controller.util.ResponseBodyMatchers;
 import by.babanin.todo.model.Priority;
+import by.babanin.todo.model.Priority.Fields;
 
 @WebMvcTest(PriorityController.class)
 class PriorityControllerTest {
@@ -46,7 +51,7 @@ class PriorityControllerTest {
     private PriorityService service;
 
     @MockBean
-    private PriorityRepository priorityRepository;
+    private PriorityRepository repository;
 
     @TestConfiguration
     static class AdditionalConfiguration {
@@ -80,6 +85,33 @@ class PriorityControllerTest {
 
         Mockito.verify(service, Mockito.times(1))
                 .create(name);
+    }
+
+    @Test
+    void createWithPosition() throws Exception {
+        String name = "name";
+        long position = 1;
+        Priority priority = Priority.builder()
+                .id(0L)
+                .name(name)
+                .position(1)
+                .build();
+        PriorityInfo expectedPriorityInfo = modelMapper.map(priority, PriorityInfo.class);
+        Mockito.when(service.create(position, name))
+                .thenReturn(priority);
+        PriorityInfo priorityInfo = new PriorityInfo();
+        priorityInfo.setName(name);
+        priorityInfo.setPosition(position);
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/priorities")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(priorityInfo)))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
+                        .containsObjectAsJson(expectedPriorityInfo, PriorityInfo.class));
+
+        Mockito.verify(service, Mockito.times(1))
+                .create(position, name);
     }
 
     @Test
@@ -470,5 +502,149 @@ class PriorityControllerTest {
 
         Mockito.verify(service, Mockito.times(1))
                 .deleteAll();
+    }
+
+    @Test
+    void getById() throws Exception {
+        Long id = 1L;
+        Priority priority = Priority.builder()
+                .id(id)
+                .name("test")
+                .position(0)
+                .build();
+        PriorityInfo expectedPriorityInfo = modelMapper.map(priority, PriorityInfo.class);
+        Mockito.when(service.getById(id))
+                .thenReturn(priority);
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/priorities/{id}", id))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
+                        .containsObjectAsJson(expectedPriorityInfo, PriorityInfo.class));
+
+        Mockito.verify(service, Mockito.times(1))
+                .getById(id);
+    }
+
+    @Test
+    void getByIdWithNegativeId() throws Exception {
+        Long id = -1L;
+
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/priorities/{id}", id))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andReturn();
+
+        Assertions.assertThat(result.getResponse().getContentAsString())
+                .isEqualTo("Not valid due to validation error: getById.id: must be greater than or equal to 0");
+
+        Mockito.verify(service, Mockito.never()).getById(id);
+    }
+
+    @Test
+    void getByIdWithStringId() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get("/priorities/{id}", "test"))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest());
+    }
+
+    @Test
+    void getAllById() throws Exception {
+        Set<Long> ids = Set.of(1L, 2L);
+        List<Priority> priorities = List.of(
+                Priority.builder()
+                        .id(1L)
+                        .name("name1")
+                        .position(0)
+                        .build(),
+                Priority.builder()
+                        .id(2L)
+                        .name("name2")
+                        .position(1)
+                        .build()
+        );
+        List<PriorityInfo> expectedPriorityInfos = priorities.stream()
+                .map(priority -> modelMapper.map(priority, PriorityInfo.class))
+                .toList();
+        Mockito.when(service.getAllById(ids))
+                .thenReturn(priorities);
+
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/priorities/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .param("ids", ids.stream().map(Object::toString).toArray(String[]::new)))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn();
+
+        Assertions.assertThat(result.getResponse().getContentAsString())
+                .isEqualTo(objectMapper.writeValueAsString(expectedPriorityInfos));
+
+        Mockito.verify(service, Mockito.times(1))
+                .getAllById(ids);
+    }
+
+    @Test
+    void getAllByIdWithNegativeIds() throws Exception {
+        Set<Long> ids = Set.of(1L, -2L);
+
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/priorities/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .param("ids", ids.stream().map(Object::toString).toArray(String[]::new)))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andReturn();
+
+        Assertions.assertThat(result.getResponse().getContentAsString())
+                .isEqualTo("Not valid due to validation error: ID set must not contain negative IDs.");
+
+        Mockito.verify(service, Mockito.never())
+                .getAllById(ids);
+    }
+
+    @Test
+    void getAllByIdWithStringIds() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.get("/priorities/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .param("ids", "test1", "test2"))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest());
+    }
+
+    @Test
+    void getAllByIdWithoutIds() throws Exception {
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/priorities/search")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .param("ids", ""))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andReturn();
+
+        Assertions.assertThat(result.getResponse().getContentAsString())
+                .isEqualTo("Not valid due to validation error: getAllById.ids: must not be empty");
+    }
+
+    @Test
+    void page() throws Exception {
+        List<Priority> priorities = List.of(
+                Priority.builder()
+                        .id(1L)
+                        .name("name1")
+                        .position(0)
+                        .build(),
+                Priority.builder()
+                        .id(2L)
+                        .name("name2")
+                        .position(1)
+                        .build()
+        );
+        PageRequest pageRequest = PageRequest.of(0, 20, Direction.ASC, Fields.position);
+        Page<Priority> page = new PageImpl<>(priorities, pageRequest, 2);
+        Page<PriorityInfo> expectedPage = page.map(priority -> modelMapper.map(priority, PriorityInfo.class));
+        Mockito.when(repository.findAll(pageRequest))
+                .thenReturn(page);
+
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/priorities")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andReturn();
+
+        Assertions.assertThat(result.getResponse().getContentAsString())
+                .isEqualTo(objectMapper.writeValueAsString(expectedPage));
+
+        Mockito.verify(repository, Mockito.times(1))
+                .findAll(pageRequest);
     }
 }

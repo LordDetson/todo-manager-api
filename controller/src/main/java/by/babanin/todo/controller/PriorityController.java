@@ -5,8 +5,8 @@ import java.util.Set;
 
 import javax.validation.Valid;
 import javax.validation.ValidationException;
-import javax.validation.constraints.Min;
 import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.PositiveOrZero;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
@@ -60,7 +60,7 @@ public class PriorityController {
 
     @PutMapping("{id}")
     PriorityInfo rename(
-            @PathVariable("id") @Min(0) Long id,
+            @PathVariable("id") @PositiveOrZero Long id,
             @RequestBody @Valid PriorityInfo priorityInfo) {
         Priority priority = priorityService.rename(id, priorityInfo.getName());
         return modelMapper.map(priority, PriorityInfo.class);
@@ -72,7 +72,7 @@ public class PriorityController {
     }
 
     @DeleteMapping("{id}")
-    void delete(@PathVariable("id") @Min(0) Long id) {
+    void delete(@PathVariable("id") @PositiveOrZero Long id) {
         priorityService.deleteById(id);
     }
 
@@ -109,7 +109,7 @@ public class PriorityController {
     }
 
     @GetMapping("{id}")
-    PriorityInfo getById(@PathVariable("id") @Min(0) Long id) {
+    PriorityInfo getById(@PathVariable("id") @PositiveOrZero Long id) {
         Priority priority = priorityService.getById(id);
         return modelMapper.map(priority, PriorityInfo.class);
     }

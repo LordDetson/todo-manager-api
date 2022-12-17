@@ -14,7 +14,7 @@
     <packaging>war</packaging>
 
     <properties>
-        <sonar.coverage.exclusions>**/*</sonar.coverage.exclusions>
+        <sonar.coverage.exclusions>**/exception/**/*, **/config/**/*, **/dto/**/*</sonar.coverage.exclusions>
         <modelmapper.varsuon>3.1.0</modelmapper.varsuon>
     </properties>
 
@@ -46,4 +46,38 @@
             <version>${modelmapper.varsuon}</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <excludes>
+                        <exclude>**/exception/**/*</exclude>
+                        <exclude>**/config/**/*</exclude>
+                        <exclude>**/dto/**/*</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

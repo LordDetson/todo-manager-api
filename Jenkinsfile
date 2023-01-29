@@ -17,5 +17,13 @@ pipeline {
         }
       }
     }
+    stage ("Build and push docker image") {
+      environment {
+        DOCKER_HUB_LOGIN = credentials("DockerHub")
+      }
+      steps {
+        sh 'mvn spring-boot:build-image -DpublishRegistry.username=$DOCKER_HUB_LOGIN_USR -DpublishRegistry.password=$DOCKER_HUB_LOGIN_PSW'
+      }
+    }
   }
 }

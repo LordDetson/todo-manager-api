@@ -11,7 +11,7 @@
 
     <artifactId>controller</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
 
     <properties>
         <sonar.coverage.exclusions>**/exception/**/*, **/config/**/*, **/dto/**/*, **/Application.java, **/CheckUtils.java</sonar.coverage.exclusions>
@@ -54,6 +54,7 @@
     </dependencies>
 
     <build>
+        <finalName>todo-manager-api-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -84,6 +85,25 @@
                     <includes>
                         <include>**/*Test.java</include>
                     </includes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <image>
+                        <name>lorddetson/todo-manager-api:${project.version}</name>
+                        <publish>true</publish>
+                    </image>
+                    <docker>
+                        <publishRegistry>
+                            <username>${publishRegistry.username}</username>
+                            <password>${publishRegistry.password}</password>
+                        </publishRegistry>
+                    </docker>
+                    <profiles>
+                        <profile>dev</profile>
+                    </profiles>
                 </configuration>
             </plugin>
         </plugins>

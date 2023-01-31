@@ -27,7 +27,7 @@ pipeline {
     }
     stage ("Run docker image") {
       steps {
-        sh "docker run -d --name todo-manager-api -p 80:8080 --network todo-manager -e APP_WORKDIR=/var/.todo-manager-api todo-manager-api"
+        sh "docker run -d --name todo-manager-api -p 80:8080 --network todo-manager -e APP_WORKDIR=/var/.todo-manager-api lorddetson/todo-manager-api"
       }
     }
   }

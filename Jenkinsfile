@@ -25,5 +25,10 @@ pipeline {
         sh 'mvn spring-boot:build-image -DpublishRegistry.username=$DOCKER_HUB_LOGIN_USR -DpublishRegistry.password=$DOCKER_HUB_LOGIN_PSW'
       }
     }
+    stage ("Run docker image") {
+      steps {
+        sh "docker run -d --name todo-manager-api -p 80:8080 --network todo-manager -e APP_WORKDIR=/var/.todo-manager-api todo-manager-api:latest"
+      }
+    }
   }
 }

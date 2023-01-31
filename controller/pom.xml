@@ -54,7 +54,7 @@
     </dependencies>
 
     <build>
-        <finalName>todo-manager-api-${project.version}</finalName>
+        <finalName>todo-manager-api</finalName>
         <plugins>
             <plugin>
                 <groupId>org.jacoco</groupId>
@@ -92,7 +92,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <image>
-                        <name>lorddetson/todo-manager-api:${project.version}</name>
+                        <name>lorddetson/${project.build.finalName}:${project.version}</name>
                         <publish>true</publish>
                     </image>
                     <docker>
@@ -102,7 +102,7 @@
                         </publishRegistry>
                     </docker>
                     <profiles>
-                        <profile>dev</profile>
+                        <profile>prod</profile>
                     </profiles>
                 </configuration>
             </plugin>

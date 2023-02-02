@@ -101,9 +101,7 @@
                             <password>${publishRegistry.password}</password>
                         </publishRegistry>
                     </docker>
-                    <profiles>
-                        <profile>prod</profile>
-                    </profiles>
+                    <profiles>prod</profiles>
                 </configuration>
             </plugin>
         </plugins>

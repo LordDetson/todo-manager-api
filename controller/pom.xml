@@ -92,8 +92,19 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <image>
-                        <name>lorddetson/${project.build.finalName}</name>
+                        <name>lorddetson/${project.build.finalName}:${project.version}</name>
+                        <tags>lorddetson/${project.build.finalName}:latest</tags>
                         <publish>true</publish>
+                        <buildCache>
+                            <volume>
+                                <name>cache-${project.build.finalName}.build</name>
+                            </volume>
+                        </buildCache>
+                        <launchCache>
+                            <volume>
+                                <name>cache-${project.build.finalName}.launch</name>
+                            </volume>
+                        </launchCache>
                     </image>
                     <docker>
                         <publishRegistry>

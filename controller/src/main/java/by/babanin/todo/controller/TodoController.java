@@ -3,10 +3,6 @@ package by.babanin.todo.controller;
 import java.util.List;
 import java.util.Set;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.PositiveOrZero;
-
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +26,9 @@ import by.babanin.todo.controller.dto.TodoToCreate;
 import by.babanin.todo.controller.dto.TodoToUpdate;
 import by.babanin.todo.model.Priority.Fields;
 import by.babanin.todo.model.Todo;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.PositiveOrZero;
 
 @RestController
 @RequestMapping("/todo")

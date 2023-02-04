@@ -1,9 +1,8 @@
 package by.babanin.todo.controller.dto;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.PositiveOrZero;
-import javax.validation.constraints.Size;
-
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data

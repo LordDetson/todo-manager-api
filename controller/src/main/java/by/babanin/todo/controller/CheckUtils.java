@@ -2,8 +2,7 @@ package by.babanin.todo.controller;
 
 import java.util.Set;
 
-import javax.validation.ValidationException;
-
+import jakarta.validation.ValidationException;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass

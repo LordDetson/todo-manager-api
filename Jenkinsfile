@@ -36,7 +36,7 @@ pipeline {
       steps {
         sh "docker rm -f $CONTAINER_NAME"
         sh "docker rmi $IMAGE_NAME"
-        sh "docker run -d --name $CONTAINER_NAME -p 80:8080 --network todo-manager-api -v /var/.todo-manager-api:$APP_WORKDIR -e APP_WORKDIR=$APP_WORKDIR -e DB_USER=$DB_LOGIN_USR -e DB_PASSWORD=$DB_LOGIN_PSW -e DB_NAME=$DB_NAME $IMAGE_NAME"
+        sh "docker run -d --name $CONTAINER_NAME -p 80:8080 --network todo-manager-api -v /var/.todo-manager-api:$APP_WORKDIR -e APP_WORKDIR=$APP_WORKDIR -e DB_USER=$DB_LOGIN_USR -e DB_PASSWORD=$DB_LOGIN_PSW -e DB_NAME=$DB_NAME $IMAGE_NAME --spring.profiles.active=prod"
       }
     }
   }

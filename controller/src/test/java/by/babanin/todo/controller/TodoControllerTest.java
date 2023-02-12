@@ -9,6 +9,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.modelmapper.Converter;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -28,6 +29,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import by.babanin.todo.application.repository.TodoRepository;
+import by.babanin.todo.application.service.PriorityService;
 import by.babanin.todo.application.service.TodoService;
 import by.babanin.todo.controller.dto.SwapParameter;
 import by.babanin.todo.controller.dto.TodoInfo;
@@ -36,6 +38,7 @@ import by.babanin.todo.controller.dto.TodoToUpdate;
 import by.babanin.todo.controller.exception.handler.ErrorResult;
 import by.babanin.todo.controller.exception.handler.FieldValidationError;
 import by.babanin.todo.controller.util.ResponseBodyMatchers;
+import by.babanin.todo.model.Priority;
 import by.babanin.todo.model.Status;
 import by.babanin.todo.model.Todo;
 import by.babanin.todo.model.Todo.Fields;
@@ -53,40 +56,65 @@ class TodoControllerTest {
     private ModelMapper modelMapper;
 
     @MockBean
-    private TodoService service;
+    private TodoService todoService;
 
     @MockBean
-    private TodoRepository repository;
+    private TodoRepository todoRepository;
+
+    @MockBean
+    private PriorityService priorityService;
 
     @TestConfiguration
     static class AdditionalConfiguration {
 
         @Bean
-        ModelMapper modelMapper() {
-            return new ModelMapper();
+        ModelMapper modelMapper(Converter<Long, Priority> priorityIdConverter) {
+            ModelMapper modelMapper = new ModelMapper();
+            modelMapper.createTypeMap(TodoToUpdate.class, Todo.class)
+                    .addMappings(mapping -> mapping.using(priorityIdConverter)
+                            .map(TodoToUpdate::getPriorityId, Todo::setPriority));
+            return modelMapper;
+        }
+
+        @Bean
+        Converter<Long, Priority> priorityIdConverter(PriorityService service) {
+            return context -> {
+                Long priorityId = context.getSource();
+                if(priorityId != null) {
+                    return service.getById(priorityId);
+                }
+                return null;
+            };
         }
     }
 
     @Test
     void create() throws Exception {
+        Priority priority = Priority.builder()
+                .id(0L)
+                .name("name")
+                .build();
         Todo todo = Todo.builder()
                 .id(0L)
                 .title("title")
                 .status(Status.OPEN)
+                .priority(priority)
                 .creationDate(LocalDate.now())
                 .plannedDate(LocalDate.now().plusDays(1))
                 .build();
         TodoInfo expectedTodoInfo = modelMapper.map(todo, TodoInfo.class);
-        Mockito.when(service.create(
+        Mockito.when(todoService.create(
                         todo.getTitle(),
                         todo.getDescription(),
                         todo.getPriority(),
                         todo.getPlannedDate()))
                 .thenReturn(todo);
+        Mockito.when(priorityService.getById(priority.getId()))
+                .thenReturn(priority);
         TodoToCreate todoToCreate = new TodoToCreate();
         todoToCreate.setTitle(todo.getTitle());
         todoToCreate.setDescription(todo.getDescription());
-        todoToCreate.setPriority(todo.getPriority());
+        todoToCreate.setPriorityId(todo.getPriority().getId());
         todoToCreate.setPlannedDate(todo.getPlannedDate());
 
         mockMvc.perform(MockMvcRequestBuilders.post("/todo")
@@ -96,11 +124,13 @@ class TodoControllerTest {
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
                         .containsObjectAsJson(expectedTodoInfo, TodoInfo.class));
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .create(todo.getTitle(),
                         todo.getDescription(),
                         todo.getPriority(),
                         todo.getPlannedDate());
+        Mockito.verify(priorityService, Mockito.times(1))
+                .getById(priority.getId());
     }
 
     @Test
@@ -114,7 +144,7 @@ class TodoControllerTest {
                 .position(1)
                 .build();
         TodoInfo expectedTodoInfo = modelMapper.map(todo, TodoInfo.class);
-        Mockito.when(service.create(
+        Mockito.when(todoService.create(
                         todo.getPosition(),
                         todo.getTitle(),
                         todo.getDescription(),
@@ -124,7 +154,6 @@ class TodoControllerTest {
         TodoToCreate todoToCreate = new TodoToCreate();
         todoToCreate.setTitle(todo.getTitle());
         todoToCreate.setDescription(todo.getDescription());
-        todoToCreate.setPriority(todo.getPriority());
         todoToCreate.setPlannedDate(todo.getPlannedDate());
         todoToCreate.setPosition(todo.getPosition());
 
@@ -135,7 +164,7 @@ class TodoControllerTest {
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
                         .containsObjectAsJson(expectedTodoInfo, TodoInfo.class));
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .create(todo.getPosition(),
                         todo.getTitle(),
                         todo.getDescription(),
@@ -152,7 +181,7 @@ class TodoControllerTest {
                 .creationDate(LocalDate.now())
                 .plannedDate(LocalDate.now().plusDays(1))
                 .build();
-        Mockito.when(service.create(
+        Mockito.when(todoService.create(
                         todo.getTitle(),
                         todo.getDescription(),
                         todo.getPriority(),
@@ -161,7 +190,6 @@ class TodoControllerTest {
         TodoToCreate todoToCreate = new TodoToCreate();
         todoToCreate.setTitle(todo.getTitle());
         todoToCreate.setDescription(todo.getDescription());
-        todoToCreate.setPriority(todo.getPriority());
         todoToCreate.setPlannedDate(todo.getPlannedDate());
         ErrorResult errorResult = new ErrorResult();
         List<FieldValidationError> fieldErrors = errorResult.getFieldErrors();
@@ -175,7 +203,7 @@ class TodoControllerTest {
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
                         .containsObjectAsJson(errorResult, ErrorResult.class));
 
-        Mockito.verify(service, Mockito.never())
+        Mockito.verify(todoService, Mockito.never())
                 .create(todo.getTitle(),
                         todo.getDescription(),
                         todo.getPriority(),
@@ -191,7 +219,7 @@ class TodoControllerTest {
                 .creationDate(LocalDate.now())
                 .plannedDate(LocalDate.now().plusDays(1))
                 .build();
-        Mockito.when(service.create(
+        Mockito.when(todoService.create(
                         todo.getTitle(),
                         todo.getDescription(),
                         todo.getPriority(),
@@ -200,7 +228,6 @@ class TodoControllerTest {
         TodoToCreate todoToCreate = new TodoToCreate();
         todoToCreate.setTitle(todo.getTitle());
         todoToCreate.setDescription(todo.getDescription());
-        todoToCreate.setPriority(todo.getPriority());
         todoToCreate.setPlannedDate(todo.getPlannedDate());
         ErrorResult errorResult = new ErrorResult();
         List<FieldValidationError> fieldErrors = errorResult.getFieldErrors();
@@ -213,7 +240,7 @@ class TodoControllerTest {
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
                         .containsObjectAsJson(errorResult, ErrorResult.class));
 
-        Mockito.verify(service, Mockito.never())
+        Mockito.verify(todoService, Mockito.never())
                 .create(todo.getTitle(),
                         todo.getDescription(),
                         todo.getPriority(),
@@ -230,7 +257,7 @@ class TodoControllerTest {
                 .plannedDate(LocalDate.now().plusDays(1))
                 .position(-1)
                 .build();
-        Mockito.when(service.create(
+        Mockito.when(todoService.create(
                         todo.getPosition(),
                         todo.getTitle(),
                         todo.getDescription(),
@@ -240,7 +267,6 @@ class TodoControllerTest {
         TodoToCreate todoToCreate = new TodoToCreate();
         todoToCreate.setTitle(todo.getTitle());
         todoToCreate.setDescription(todo.getDescription());
-        todoToCreate.setPriority(todo.getPriority());
         todoToCreate.setPlannedDate(todo.getPlannedDate());
         todoToCreate.setPosition(todo.getPosition());
         ErrorResult errorResult = new ErrorResult();
@@ -253,7 +279,7 @@ class TodoControllerTest {
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
                         .containsObjectAsJson(errorResult, ErrorResult.class));
 
-        Mockito.verify(service, Mockito.never())
+        Mockito.verify(todoService, Mockito.never())
                 .create(todo.getPosition(),
                         todo.getTitle(),
                         todo.getDescription(),
@@ -272,7 +298,7 @@ class TodoControllerTest {
                 .plannedDate(LocalDate.now().plusDays(1))
                 .position(1)
                 .build();
-        Mockito.when(service.create(
+        Mockito.when(todoService.create(
                         todo.getPosition(),
                         todo.getTitle(),
                         todo.getDescription(),
@@ -282,7 +308,6 @@ class TodoControllerTest {
         TodoToCreate todoToCreate = new TodoToCreate();
         todoToCreate.setTitle(todo.getTitle());
         todoToCreate.setDescription(todo.getDescription());
-        todoToCreate.setPriority(todo.getPriority());
         todoToCreate.setPlannedDate(todo.getPlannedDate());
         todoToCreate.setPosition(todo.getPosition());
         ErrorResult errorResult = new ErrorResult();
@@ -295,7 +320,7 @@ class TodoControllerTest {
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
                         .containsObjectAsJson(errorResult, ErrorResult.class));
 
-        Mockito.verify(service, Mockito.never())
+        Mockito.verify(todoService, Mockito.never())
                 .create(todo.getPosition(),
                         todo.getTitle(),
                         todo.getDescription(),
@@ -313,7 +338,7 @@ class TodoControllerTest {
                 .plannedDate(LocalDate.now().plusDays(1))
                 .position(1)
                 .build();
-        Mockito.when(service.create(
+        Mockito.when(todoService.create(
                         todo.getPosition(),
                         todo.getTitle(),
                         todo.getDescription(),
@@ -323,7 +348,6 @@ class TodoControllerTest {
         TodoToCreate todoToCreate = new TodoToCreate();
         todoToCreate.setTitle(todo.getTitle());
         todoToCreate.setDescription(todo.getDescription());
-        todoToCreate.setPriority(todo.getPriority());
         todoToCreate.setPosition(todo.getPosition());
         ErrorResult errorResult = new ErrorResult();
         errorResult.getFieldErrors().add(new FieldValidationError(Fields.plannedDate, "must not be null"));
@@ -335,7 +359,7 @@ class TodoControllerTest {
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
                         .containsObjectAsJson(errorResult, ErrorResult.class));
 
-        Mockito.verify(service, Mockito.never())
+        Mockito.verify(todoService, Mockito.never())
                 .create(todo.getPosition(),
                         todo.getTitle(),
                         todo.getDescription(),
@@ -352,28 +376,76 @@ class TodoControllerTest {
     }
 
     @Test
-    void update() throws Exception {
+    void createWithNegativePriorityId() throws Exception {
+        Priority priority = Priority.builder()
+                .id(-1L)
+                .name("name")
+                .build();
         Todo todo = Todo.builder()
                 .id(0L)
                 .title("title")
                 .status(Status.OPEN)
+                .priority(priority)
+                .creationDate(LocalDate.now())
+                .plannedDate(LocalDate.now().plusDays(1))
+                .build();
+        TodoToCreate todoToCreate = new TodoToCreate();
+        todoToCreate.setTitle(todo.getTitle());
+        todoToCreate.setDescription(todo.getDescription());
+        todoToCreate.setPriorityId(todo.getPriority().getId());
+        todoToCreate.setPlannedDate(todo.getPlannedDate());
+        ErrorResult errorResult = new ErrorResult();
+        errorResult.getFieldErrors().add(new FieldValidationError("priorityId", "must be greater than or equal to 0"));
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/todo")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(todoToCreate)))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
+                        .containsObjectAsJson(errorResult, ErrorResult.class));
+
+        Mockito.verify(todoService, Mockito.never())
+                .create(todo.getTitle(),
+                        todo.getDescription(),
+                        todo.getPriority(),
+                        todo.getPlannedDate());
+        Mockito.verify(priorityService, Mockito.never())
+                .getById(priority.getId());
+    }
+
+    @Test
+    void update() throws Exception {
+        Priority priority = Priority.builder()
+                .id(0L)
+                .name("name")
+                .build();
+        Todo todo = Todo.builder()
+                .id(0L)
+                .title("title")
+                .status(Status.OPEN)
+                .priority(priority)
                 .creationDate(LocalDate.now())
                 .plannedDate(LocalDate.now().plusDays(1))
                 .position(1L)
                 .build();
-        TodoInfo todoInfo = modelMapper.map(todo, TodoInfo.class);
-        Mockito.when(service.save(todo))
+        TodoInfo expectedTodo = modelMapper.map(todo, TodoInfo.class);
+        TodoToUpdate todoToUpdate = modelMapper.map(todo, TodoToUpdate.class);
+        Mockito.when(todoService.save(todo))
                 .thenReturn(todo);
+        Mockito.when(priorityService.getById(priority.getId()))
+                .thenReturn(priority);
 
         mockMvc.perform(MockMvcRequestBuilders.put("/todo/{id}", todo.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(todoInfo)))
+                        .content(objectMapper.writeValueAsString(todoToUpdate)))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
-                        .containsObjectAsJson(todoInfo, TodoInfo.class));
+                        .containsObjectAsJson(expectedTodo, TodoInfo.class));
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .save(todo);
+        Mockito.verify(priorityService, Mockito.times(1))
+                .getById(priority.getId());
     }
 
     @Test
@@ -392,7 +464,7 @@ class TodoControllerTest {
         fieldErrors.add(new FieldValidationError(Fields.title, "size must be between 1 and 32"));
         TodoToUpdate todoToUpdate = modelMapper.map(todo, TodoToUpdate.class);
 
-        validateUpdateAndResult(todo, todoToUpdate, errorResult);
+        validateUpdateAndErrorResult(todo, todoToUpdate, errorResult);
     }
 
     @Test
@@ -409,7 +481,7 @@ class TodoControllerTest {
         errorResult.getFieldErrors().add(new FieldValidationError(Fields.title, "size must be between 1 and 32"));
         TodoToUpdate todoToUpdate = modelMapper.map(todo, TodoToUpdate.class);
 
-        validateUpdateAndResult(todo, todoToUpdate, errorResult);
+        validateUpdateAndErrorResult(todo, todoToUpdate, errorResult);
     }
 
     @Test
@@ -446,7 +518,7 @@ class TodoControllerTest {
         errorResult.getFieldErrors().add(new FieldValidationError(Fields.description, "size must be between 0 and 1024"));
         TodoToUpdate todoToUpdate = modelMapper.map(todo, TodoToUpdate.class);
 
-        validateUpdateAndResult(todo, todoToUpdate, errorResult);
+        validateUpdateAndErrorResult(todo, todoToUpdate, errorResult);
     }
 
     @Test
@@ -464,7 +536,7 @@ class TodoControllerTest {
         ErrorResult errorResult = new ErrorResult();
         errorResult.getFieldErrors().add(new FieldValidationError(Fields.status, "must not be null"));
 
-        validateUpdateAndResult(todo, todoToUpdate, errorResult);
+        validateUpdateAndErrorResult(todo, todoToUpdate, errorResult);
     }
 
     @Test
@@ -474,7 +546,29 @@ class TodoControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isBadRequest());
     }
 
-    private void validateUpdateAndResult(Todo todo, TodoToUpdate todoToUpdate, ErrorResult errorResult) throws Exception {
+    @Test
+    void updateWithNegativePriorityId() throws Exception {
+        Priority priority = Priority.builder()
+                .id(-1L)
+                .name("name")
+                .build();
+        Todo todo = Todo.builder()
+                .id(0L)
+                .title("title")
+                .status(Status.OPEN)
+                .priority(priority)
+                .creationDate(LocalDate.now())
+                .plannedDate(LocalDate.now().plusDays(1))
+                .position(1L)
+                .build();
+        ErrorResult errorResult = new ErrorResult();
+        errorResult.getFieldErrors().add(new FieldValidationError("priorityId", "must be greater than or equal to 0"));
+        TodoToUpdate todoToUpdate = modelMapper.map(todo, TodoToUpdate.class);
+
+        validateUpdateAndErrorResult(todo, todoToUpdate, errorResult);
+    }
+
+    private void validateUpdateAndErrorResult(Todo todo, TodoToUpdate todoToUpdate, ErrorResult errorResult) throws Exception {
         MvcResult result = validateUpdate(todo, todoToUpdate);
         ResponseBodyMatchers.responseBody(objectMapper)
                 .containsObjectAsJson(errorResult, ErrorResult.class)
@@ -482,7 +576,7 @@ class TodoControllerTest {
     }
 
     private MvcResult validateUpdate(Todo todo, TodoToUpdate todoToUpdate) throws Exception {
-        Mockito.when(service.save(todo))
+        Mockito.when(todoService.save(todo))
                 .thenReturn(todo);
 
         MvcResult result = mockMvc.perform(MockMvcRequestBuilders.put("/todo/{id}", todo.getId())
@@ -491,7 +585,7 @@ class TodoControllerTest {
                 .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andReturn();
 
-        Mockito.verify(service, Mockito.never())
+        Mockito.verify(todoService, Mockito.never())
                 .save(todo);
         return result;
     }
@@ -507,7 +601,7 @@ class TodoControllerTest {
                         .content(objectMapper.writeValueAsString(swapParameter)))
                 .andExpect(MockMvcResultMatchers.status().isOk());
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .swap(swapParameter.getFrom(), swapParameter.getTo());
     }
 
@@ -528,7 +622,7 @@ class TodoControllerTest {
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
                         .containsObjectAsJson(errorResult, ErrorResult.class));
 
-        Mockito.verify(service, Mockito.never())
+        Mockito.verify(todoService, Mockito.never())
                 .swap(swapParameter.getFrom(), swapParameter.getTo());
     }
 
@@ -559,7 +653,7 @@ class TodoControllerTest {
                         .position(1)
                         .build()
         );
-        Mockito.when(service.getAll())
+        Mockito.when(todoService.getAll())
                 .thenReturn(todos);
         List<TodoInfo> todoInfos = todos.stream()
                 .map(todo -> modelMapper.map(todo, TodoInfo.class))
@@ -584,13 +678,13 @@ class TodoControllerTest {
                 .plannedDate(LocalDate.now().plusDays(1))
                 .position(0)
                 .build();
-        Mockito.when(service.deleteById(id))
+        Mockito.when(todoService.deleteById(id))
                 .thenReturn(todo);
 
         mockMvc.perform(MockMvcRequestBuilders.delete("/todo/{id}", id))
                 .andExpect(MockMvcResultMatchers.status().isOk());
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .deleteById(id);
     }
 
@@ -605,7 +699,7 @@ class TodoControllerTest {
         Assertions.assertThat(result.getResponse().getContentAsString())
                 .isEqualTo("Not valid due to validation error: delete.id: must be greater than or equal to 0");
 
-        Mockito.verify(service, Mockito.never()).deleteById(id);
+        Mockito.verify(todoService, Mockito.never()).deleteById(id);
     }
 
     @Test
@@ -635,7 +729,7 @@ class TodoControllerTest {
                         .position(1)
                         .build()
         );
-        Mockito.when(service.deleteAllById(ids))
+        Mockito.when(todoService.deleteAllById(ids))
                 .thenReturn(todo);
 
         mockMvc.perform(MockMvcRequestBuilders.delete("/todo")
@@ -643,7 +737,7 @@ class TodoControllerTest {
                         .param("ids", ids.stream().map(Object::toString).toArray(String[]::new)))
                 .andExpect(MockMvcResultMatchers.status().isOk());
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .deleteAllById(ids);
     }
 
@@ -660,7 +754,7 @@ class TodoControllerTest {
                         .position(0)
                         .build()
         );
-        Mockito.when(service.deleteAllById(new HashSet<>(ids)))
+        Mockito.when(todoService.deleteAllById(new HashSet<>(ids)))
                 .thenReturn(todo);
 
         mockMvc.perform(MockMvcRequestBuilders.delete("/todo")
@@ -668,7 +762,7 @@ class TodoControllerTest {
                         .param("ids", ids.stream().map(Object::toString).toArray(String[]::new)))
                 .andExpect(MockMvcResultMatchers.status().isOk());
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .deleteAllById(new HashSet<>(ids));
     }
 
@@ -685,7 +779,7 @@ class TodoControllerTest {
         Assertions.assertThat(result.getResponse().getContentAsString())
                 .isEqualTo("Not valid due to validation error: ID set must not contain negative IDs.");
 
-        Mockito.verify(service, Mockito.never())
+        Mockito.verify(todoService, Mockito.never())
                 .deleteAllById(ids);
     }
 
@@ -730,13 +824,13 @@ class TodoControllerTest {
                         .build()
         );
 
-        Mockito.when(service.deleteAll())
+        Mockito.when(todoService.deleteAll())
                 .thenReturn(todo);
 
         mockMvc.perform(MockMvcRequestBuilders.delete("/todo/all"))
                 .andExpect(MockMvcResultMatchers.status().isOk());
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .deleteAll();
     }
 
@@ -752,7 +846,7 @@ class TodoControllerTest {
                 .position(0)
                 .build();
         TodoInfo expectedPriorityInfo = modelMapper.map(todo, TodoInfo.class);
-        Mockito.when(service.getById(id))
+        Mockito.when(todoService.getById(id))
                 .thenReturn(todo);
 
         mockMvc.perform(MockMvcRequestBuilders.get("/todo/{id}", id))
@@ -760,7 +854,7 @@ class TodoControllerTest {
                 .andExpect(ResponseBodyMatchers.responseBody(objectMapper)
                         .containsObjectAsJson(expectedPriorityInfo, TodoInfo.class));
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .getById(id);
     }
 
@@ -775,7 +869,7 @@ class TodoControllerTest {
         Assertions.assertThat(result.getResponse().getContentAsString())
                 .isEqualTo("Not valid due to validation error: getById.id: must be greater than or equal to 0");
 
-        Mockito.verify(service, Mockito.never()).getById(id);
+        Mockito.verify(todoService, Mockito.never()).getById(id);
     }
 
     @Test
@@ -808,7 +902,7 @@ class TodoControllerTest {
         List<TodoInfo> expectedPriorityInfos = todos.stream()
                 .map(todo -> modelMapper.map(todo, TodoInfo.class))
                 .toList();
-        Mockito.when(service.getAllById(ids))
+        Mockito.when(todoService.getAllById(ids))
                 .thenReturn(todos);
 
         MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/todo/search")
@@ -820,7 +914,7 @@ class TodoControllerTest {
         Assertions.assertThat(result.getResponse().getContentAsString())
                 .isEqualTo(objectMapper.writeValueAsString(expectedPriorityInfos));
 
-        Mockito.verify(service, Mockito.times(1))
+        Mockito.verify(todoService, Mockito.times(1))
                 .getAllById(ids);
     }
 
@@ -837,7 +931,7 @@ class TodoControllerTest {
         Assertions.assertThat(result.getResponse().getContentAsString())
                 .isEqualTo("Not valid due to validation error: ID set must not contain negative IDs.");
 
-        Mockito.verify(service, Mockito.never())
+        Mockito.verify(todoService, Mockito.never())
                 .getAllById(ids);
     }
 
@@ -884,7 +978,7 @@ class TodoControllerTest {
         PageRequest pageRequest = PageRequest.of(0, 20, Direction.ASC, Todo.Fields.position);
         Page<Todo> page = new PageImpl<>(todos, pageRequest, 2);
         Page<TodoInfo> expectedPage = page.map(todo -> modelMapper.map(todo, TodoInfo.class));
-        Mockito.when(repository.findAll(pageRequest))
+        Mockito.when(todoRepository.findAll(pageRequest))
                 .thenReturn(page);
 
         MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/todo")
@@ -895,7 +989,7 @@ class TodoControllerTest {
         Assertions.assertThat(result.getResponse().getContentAsString())
                 .isEqualTo(objectMapper.writeValueAsString(expectedPage));
 
-        Mockito.verify(repository, Mockito.times(1))
+        Mockito.verify(todoRepository, Mockito.times(1))
                 .findAll(pageRequest);
     }
 }

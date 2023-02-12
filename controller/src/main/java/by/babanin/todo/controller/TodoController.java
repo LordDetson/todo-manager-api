@@ -19,11 +19,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import by.babanin.todo.application.repository.TodoRepository;
+import by.babanin.todo.application.service.PriorityService;
 import by.babanin.todo.application.service.TodoService;
 import by.babanin.todo.controller.dto.SwapParameter;
 import by.babanin.todo.controller.dto.TodoInfo;
 import by.babanin.todo.controller.dto.TodoToCreate;
 import by.babanin.todo.controller.dto.TodoToUpdate;
+import by.babanin.todo.model.Priority;
 import by.babanin.todo.model.Priority.Fields;
 import by.babanin.todo.model.Todo;
 import jakarta.validation.Valid;
@@ -36,11 +38,13 @@ import jakarta.validation.constraints.PositiveOrZero;
 public class TodoController {
 
     private final TodoService todoService;
+    private final PriorityService priorityService;
     private final TodoRepository todoRepository;
     private final ModelMapper modelMapper;
 
-    public TodoController(TodoService todoService, TodoRepository todoRepository, ModelMapper modelMapper) {
+    public TodoController(TodoService todoService, PriorityService priorityService, TodoRepository todoRepository, ModelMapper modelMapper) {
         this.todoService = todoService;
+        this.priorityService = priorityService;
         this.todoRepository = todoRepository;
         this.modelMapper = modelMapper;
     }
@@ -49,11 +53,16 @@ public class TodoController {
     TodoInfo create(@RequestBody @Valid TodoToCreate todoToCreate) {
         Todo todo;
         Long position = todoToCreate.getPosition();
+        Long priorityId = todoToCreate.getPriorityId();
+        Priority priority = null;
+        if(priorityId != null) {
+            priority = priorityService.getById(priorityId);
+        }
         if(position == null) {
             todo = todoService.create(
                     todoToCreate.getTitle(),
                     todoToCreate.getDescription(),
-                    todoToCreate.getPriority(),
+                    priority,
                     todoToCreate.getPlannedDate()
             );
         }
@@ -62,7 +71,7 @@ public class TodoController {
                     position,
                     todoToCreate.getTitle(),
                     todoToCreate.getDescription(),
-                    todoToCreate.getPriority(),
+                    priority,
                     todoToCreate.getPlannedDate()
             );
         }

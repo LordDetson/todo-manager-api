@@ -2,7 +2,6 @@ package by.babanin.todo.controller.dto;
 
 import java.time.LocalDate;
 
-import by.babanin.todo.model.Priority;
 import by.babanin.todo.model.Status;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,7 +23,7 @@ public class TodoInfo {
     @Size(max = 1024)
     String description;
 
-    Priority priority;
+    PriorityInfo priority;
 
     @NotNull
     Status status;
